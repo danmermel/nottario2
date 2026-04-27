@@ -111,10 +111,12 @@ jobs:
 
       - name: Install dependencies and build Lambda functions
         run: |
+          pwd
           cd lambda
+          pwd 
           npm ci
           npm run build:lambdas
-        working-directory: ./lambda
+        #working-directory: ./lambda
         # Each function is bundled with esbuild into dist/<name>.zip
         # Expected output: dist/createCheckout.zip, dist/stripeWebhook.zip,
         #                  dist/notarise.zip, dist/generateReceipt.zip, dist/verify.zip
