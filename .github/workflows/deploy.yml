@@ -1,0 +1,164 @@
+name: Deploy Nottario
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+# ── Job 1: Test ────────────────────────────────────────────────────────
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test
+
+      # - name: Type check
+      #   run: npm run typecheck
+
+# ── Job 2: Deploy frontend to GitHub Pages ────────────────────────────
+  deploy-frontend:
+    name: Deploy frontend
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Fetch current Lambda Function URLs from Terraform outputs
+      # so Nuxt can embed them as public runtime config
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Fetch Lambda Function URLs from SSM
+        run: |
+          echo "NUXT_PUBLIC_URL_CHECKOUT=$(aws ssm get-parameter --name /nottario/prod/url_create_checkout --query Parameter.Value --output text)" >> $GITHUB_ENV
+          echo "NUXT_PUBLIC_URL_NOTARISE=$(aws ssm get-parameter --name /nottario/prod/url_notarise --query Parameter.Value --output text)" >> $GITHUB_ENV
+          echo "NUXT_PUBLIC_URL_RECEIPT=$(aws ssm get-parameter --name /nottario/prod/url_generate_receipt --query Parameter.Value --output text)" >> $GITHUB_ENV
+          echo "NUXT_PUBLIC_URL_VERIFY=$(aws ssm get-parameter --name /nottario/prod/url_verify --query Parameter.Value --output text)" >> $GITHUB_ENV
+
+      - name: Build Nuxt static site
+        run: npm run generate
+        working-directory: ./frontend
+        env:
+          NUXT_PUBLIC_URL_CHECKOUT: ${{ env.NUXT_PUBLIC_URL_CHECKOUT }}
+          NUXT_PUBLIC_URL_NOTARISE: ${{ env.NUXT_PUBLIC_URL_NOTARISE }}
+          NUXT_PUBLIC_URL_RECEIPT:  ${{ env.NUXT_PUBLIC_URL_RECEIPT }}
+          NUXT_PUBLIC_URL_VERIFY:   ${{ env.NUXT_PUBLIC_URL_VERIFY }}
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./frontend/.output/public
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+# ── Job 3: Build Lambdas + Terraform apply ────────────────────────────
+  deploy-backend:
+    name: Deploy backend
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Lambda functions
+        run: npm run build:lambdas
+        # Each function is bundled with esbuild into dist/<name>.zip
+        # Expected output: dist/createCheckout.zip, dist/stripeWebhook.zip,
+        #                  dist/notarise.zip, dist/generateReceipt.zip, dist/verify.zip
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform init
+        working-directory: ./terraform
+
+      - name: Terraform plan
+        run: |
+          terraform plan \
+            -var-file=environments/prod/terraform.tfvars \
+            -out=tfplan \
+            -input=false
+        working-directory: ./terraform
+
+      - name: Terraform apply
+        run: terraform apply -input=false tfplan
+        working-directory: ./terraform
+
+      # Write Function URLs to SSM so the frontend job can read them
+      - name: Write Function URLs to SSM Parameter Store
+        run: |
+          aws ssm put-parameter --name /nottario/prod/url_create_checkout \
+            --value "$(terraform output -raw url_create_checkout)" \
+            --type String --overwrite
+          aws ssm put-parameter --name /nottario/prod/url_notarise \
+            --value "$(terraform output -raw url_notarise)" \
+            --type String --overwrite
+          aws ssm put-parameter --name /nottario/prod/url_generate_receipt \
+            --value "$(terraform output -raw url_generate_receipt)" \
+            --type String --overwrite
+          aws ssm put-parameter --name /nottario/prod/url_verify \
+            --value "$(terraform output -raw url_verify)" \
+            --type String --overwrite
+        working-directory: ./terraform

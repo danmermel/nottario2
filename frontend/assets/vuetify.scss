@@ -1,0 +1,14 @@
+// Vuetify SASS variable overrides
+// These are applied before Vuetify compiles its styles
+
+// Default font — overridden per-page via CSS custom properties
+// but setting a base here prevents the default Roboto flash
+$body-font-family: 'DM Sans', system-ui, sans-serif;
+
+// Reduce default border radius — we use sharp corners throughout
+$border-radius-root: 0px;
+
+// Elevation — flatten cards and surfaces
+$shadow-key-umbra-opacity:    0.08;
+$shadow-key-penumbra-opacity: 0.05;
+$shadow-ambient-opacity:      0.04;

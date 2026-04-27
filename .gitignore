@@ -1,0 +1,9 @@
+.terraform
+terraform.tfvars
+terraform.tfstate
+terraform/terraform.tfstate.backup
+
+dist/
+node_modules/
+todo.txt
+.DS_Store

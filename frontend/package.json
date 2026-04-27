@@ -1,0 +1,33 @@
+{
+  "name": "nottario-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev":      "nuxt dev",
+    "build":    "nuxt build",
+    "generate": "nuxt generate",
+    "preview":  "nuxt preview",
+    "lint":     "eslint .",
+    "test":     "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "nuxt":               "^3.11.0",
+    "vue":                "^3.4.0",
+    "vue-router":         "^4.3.0",
+    "vuetify":            "^3.6.0",
+    "vuetify-nuxt-module": "^0.15.0"
+  },
+  "devDependencies": {
+    "@nuxt/devtools":          "^1.0.0",
+    "@nuxt/eslint-config":     "^0.3.0",
+    "@vitejs/plugin-vue":      "^5.0.0",
+    "@vitest/coverage-v8":     "^1.4.0",
+    "eslint":                  "^8.57.0",
+    "sass":                    "^1.72.0",
+    "vitest":                  "^1.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
