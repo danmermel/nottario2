@@ -110,7 +110,7 @@ jobs:
       - name: Install dependencies and build Lambda functions
         run: |
           npm install
-          npm run build:lambdas
+          npm run build
         working-directory: ./lambda
         # Each function is bundled with esbuild into dist/<name>.zip
         # Expected output: dist/createCheckout.zip, dist/stripeWebhook.zip,
