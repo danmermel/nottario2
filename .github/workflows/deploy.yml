@@ -51,13 +51,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
-          cache: npm
+          node-version: 24
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
         working-directory: ./frontend
 
       # Fetch current Lambda Function URLs from Terraform outputs
@@ -104,19 +103,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
-          #cache: npm
+          node-version: 24
 
       - name: Install dependencies and build Lambda functions
         run: |
-          pwd
-          cd lambda
-          pwd 
-          npm ci
+          npm install
           npm run build:lambdas
-        #working-directory: ./lambda
+        working-directory: ./lambda
         # Each function is bundled with esbuild into dist/<name>.zip
         # Expected output: dist/createCheckout.zip, dist/stripeWebhook.zip,
         #                  dist/notarise.zip, dist/generateReceipt.zip, dist/verify.zip
