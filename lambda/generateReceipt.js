@@ -143,7 +143,7 @@ async function buildPdf({ transactionId, hash, fileName, tsaToken, timestamp }) 
 
   y -= 10
 
-  // ── Document fingerprint ──────────────────────────────────────────
+  // ── Document fingerprint ──────────────────────────────────────────-
   drawSection('Document fingerprint')
 
   page.drawText('SHA-256 hash  (computed on the user\'s device - document was never uploaded)', {
