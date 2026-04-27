@@ -76,13 +76,14 @@ jobs:
           echo "NUXT_PUBLIC_URL_VERIFY=$(aws ssm get-parameter --name /nottario/prod/url_verify --query Parameter.Value --output text)" >> $GITHUB_ENV
 
       - name: Build Nuxt static site
-        run: NUXT_APP_BASE_URL=nottario2 npm run generate
+        run: npm run generate
         working-directory: ./frontend
         env:
           NUXT_PUBLIC_URL_CHECKOUT: ${{ env.NUXT_PUBLIC_URL_CHECKOUT }}
           NUXT_PUBLIC_URL_NOTARISE: ${{ env.NUXT_PUBLIC_URL_NOTARISE }}
           NUXT_PUBLIC_URL_RECEIPT:  ${{ env.NUXT_PUBLIC_URL_RECEIPT }}
           NUXT_PUBLIC_URL_VERIFY:   ${{ env.NUXT_PUBLIC_URL_VERIFY }}
+          NUXT_APP_BASE_URL: /nottario2/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
