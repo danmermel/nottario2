@@ -111,6 +111,7 @@ jobs:
 
       - name: Install dependencies and build Lambda functions
         run: |
+          cd lambda
           npm ci
           npm run build:lambdas
         working-directory: ./lambda
