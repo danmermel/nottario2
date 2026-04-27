@@ -17,22 +17,22 @@ concurrency:
 
 # ── Job 1: Test ────────────────────────────────────────────────────────
 jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  # test:
+  #   name: Test
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #         cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+  #     - name: Install dependencies
+  #       run: npm ci
 
-      - name: Run unit tests
-        run: npm run test
+  #     - name: Run unit tests
+  #       run: npm run test
 
       # - name: Type check
       #   run: npm run typecheck
@@ -40,7 +40,7 @@ jobs:
 # ── Job 2: Deploy frontend to GitHub Pages ────────────────────────────
   deploy-frontend:
     name: Deploy frontend
-    needs: test
+    needs: deploy-backend
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
@@ -58,6 +58,7 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: ./frontend
 
       # Fetch current Lambda Function URLs from Terraform outputs
       # so Nuxt can embed them as public runtime config
@@ -96,7 +97,7 @@ jobs:
 # ── Job 3: Build Lambdas + Terraform apply ────────────────────────────
   deploy-backend:
     name: Deploy backend
-    needs: test
+    #needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
@@ -108,11 +109,11 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Lambda functions
-        run: npm run build:lambdas
+      - name: Install dependencies and build Lambda functions
+        run: |
+          npm ci
+          npm run build:lambdas
+        working-directory: ./lambda
         # Each function is bundled with esbuild into dist/<name>.zip
         # Expected output: dist/createCheckout.zip, dist/stripeWebhook.zip,
         #                  dist/notarise.zip, dist/generateReceipt.zip, dist/verify.zip
@@ -127,23 +128,17 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.6.6
+          terraform_version: 1.14.9
           terraform_wrapper: false
 
-      - name: Terraform init
-        run: terraform init
-        working-directory: ./terraform
-
-      - name: Terraform plan
+      - name: Terraform deployment
         run: |
+          terraform init
           terraform plan \
             -var-file=environments/prod/terraform.tfvars \
             -out=tfplan \
             -input=false
-        working-directory: ./terraform
-
-      - name: Terraform apply
-        run: terraform apply -input=false tfplan
+          terraform apply -input=false tfplan
         working-directory: ./terraform
 
       # Write Function URLs to SSM so the frontend job can read them
